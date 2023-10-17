@@ -27,18 +27,21 @@ code-line-numbers: false
 
 [^1]: V. J. Hellendoorn, S. Proksch, H. C. Gall and A. Bacchelli, "When Code Completion Fails: A Case Study on Real-World Completions," 2019 IEEE/ACM 41st International Conference on Software Engineering (ICSE) [https://doi.org/10.1109/ICSE.2019.00101](https://doi.org/10.1109/ICSE.2019.00101)
 
-## モチベーション {#motivation}
+## モチベーション {#motivation-1}
 
 - 先行研究は中断されたコード補完に関しては深入りしていない
   - 機械的なベンチマークではなく実際のコード補完の記録を分析しなければならない，という点が主題
   - 中断された理由について機械的には判別できないとしている
+
+## モチベーション {#motivation-2}
+
 - 中断された理由について考えたい
   - コード補完システムの能力が足りてないかもしれない
   - 先行研究では触れられていないコード補完の側面があるかもしれない
 
 ## 方法 {#method}
 
-- When Code Completion Failsが使っているデータセットが公開されている[^2]
+- 先行研究が使っているデータセットが公開されている[^2]
   - コード補完に関する情報と，その補完時点でのソースファイルが含まれている
 - 中断されたコード補完とソースファイルの1％程度を実際に読んで確認した
 
