@@ -1,0 +1,135 @@
+---
+lang: ja
+title: "プログラマがコード補完を中断する理由の統計調査"
+author: "岩田風多"
+format: revealjs
+css: main.css
+code-line-numbers: false
+---
+
+## コード補完の例 {#code-completion-example1}
+
+![](./example1.mov)
+
+エディタが自動で識別子等の候補を表示してくれる機能
+
+## 先行研究 [^1] {#previous-study-1}
+
+- When Code Completion Fails: A Case Study on Real-World Completions
+- コード補完エンジンを評価する機械的なベンチマークの有効性に疑問を呈する
+  - 機械的なベンチマーク：完成しているコードベースに「穴をあけ」，補完させることで精度を評価する
+
+## 先行研究 [^1] {#previous-study-2}
+
+- 15000件を超える実際のコード補完の記録について検討した
+  - コード補完エンジンは機械的なベンチマークで評価されていたより遥かに "accurate" ではないと評価した
+  - デベロッパーが時間をかけているコード補完では "accuracy" が20％を下回った
+
+[^1]: V. J. Hellendoorn, S. Proksch, H. C. Gall and A. Bacchelli, "When Code Completion Fails: A Case Study on Real-World Completions," 2019 IEEE/ACM 41st International Conference on Software Engineering (ICSE) [https://doi.org/10.1109/ICSE.2019.00101](https://doi.org/10.1109/ICSE.2019.00101)
+
+## モチベーション {#motivation}
+
+- 先行研究は中断されたコード補完に関しては深入りしていない
+  - 機械的なベンチマークではなく実際のコード補完の記録を分析しなければならない，という点が主題
+  - 中断された理由について機械的には判別できないとしている
+- 中断された理由について考えたい
+  - コード補完システムの能力が足りてないかもしれない
+  - 先行研究では触れられていないコード補完の側面があるかもしれない
+
+## 方法 {#method}
+
+- When Code Completion Failsが使っているデータセットが公開されている[^2]
+  - コード補完に関する情報と，その補完時点でのソースファイルが含まれている
+- 中断されたコード補完とソースファイルの1％程度を実際に読んで確認した
+
+[^2]: S. Proksch, S. Nadi, S. Amann and M. Mezini, "Enriching in-IDE process information with fine-grained source code history," 2017 IEEE 24th International Conference on Software Analysis, Evolution and Reengineering (SANER) [https://doi.org/10.1109/SANER.2017.7884626](https://doi.org/10.1109/SANER.2017.7884626)
+
+## 結果 {#result}
+
+- 以下のように見える場合が多かった
+  - 今書こうとしていたプログラムよりもいい書き方を思いついた
+  - 今書こうとしていたプログラムは間違っていた
+- 例について
+  - C#のコード
+  - `!!` と表示されている場所が現在カーソルのある場所
+
+## 結果 例1 {#result-example1}
+
+before:
+```cs
+Assembly assembly = Assembly.GetExecutingAssembly();
+assembly.!!;
+```
+
+after:
+```cs
+string location = Assembly.GetExecutingAssembly().Location;
+```
+
+- `Assembly`型の値を変数に束縛していて，そのプロパティを読もうとしている
+- 結局`assembly`はインライン化された
+
+## 結果 例2 {#result-example2}
+
+before:
+```cs
+FileOperations.CreateUniqueSet(gemList!!, .GoodWords);
+```
+
+after:
+```cs
+HashSet<string> tempList = new HashSet();
+FileOperations.CreateUniqueSet(tempList, .GoodWords);
+```
+
+- `GemList`を入れようとしていたが，`tempList`にした
+  - スコープに`HashSet<string> GemList`があった
+  - すでにある変数ではなく，新たな空の変数を入れるべきであったと考えられる
+
+## 結果 例3 {#result-example3}
+
+```cs
+? newLength = !!;
+
+? newLength = C!!;
+? newLength = this.Convert().!!;
+
+? newLength = T!!;
+
+? newLength = P!!;
+
+? newLength = !!;
+? newLength = Convert.!!;
+
+? newLength = S!!;
+
+? newLength = new short();
+```
+
+- newLengthを計算するための関数を探している
+- 結局見つからなかったのか，独自に実装した
+
+## 考察：試行錯誤 {#consideration-1}
+
+- プログラミングの最中，人間は試行錯誤を行っている
+  - どのような値を変数に束縛するか
+  - どのような関数を呼び出すか
+  - どのようなインターフェースが適切か
+  - これらの過程は`git commit`時には記録されない
+- 補完がキャンセルされるのは，単にこのような試行錯誤の過程だったからではないか
+  - 補完エンジンが未熟だというわけではない
+
+## 考察：試行錯誤の支援　{#consideration-2}
+
+- プログラマが試行錯誤するというのは，プログラマが思い描くソースファイルが変化するということである
+- 補完の「エディタ上のソースファイルをプログラマが思い描くソースファイルに追いつかせる」という機能は十分に成熟している
+- 一方，補完の「プログラマが思い描くソースファイルと相互作用して試行錯誤を支援する」という機能はまだ改善の余地がある
+
+## 調査の計画 {#plan}
+
+- 試行錯誤を機械的に判別できるようにしたい
+  - 1%程度しか見ておらず，また目視での判別なので，確実ではない
+  - 今の所，具体的には「補完イベントの該当部分付近が，補完が失敗した時点のソースファイルとその後の補完のソースファイルとで大きく違う」だろうと見ている
+- 上の判別基準をもとに調査を行いたい
+  - 統計により定量的な考察が可能になると考えられる
+
