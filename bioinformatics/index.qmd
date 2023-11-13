@@ -4,6 +4,7 @@ title: "生物はDNAを「静的解析」するか"
 author: "岩田風多"
 format: revealjs
 code-line-numbers: false
+css: main.css
 ---
 
 ## 「静的解析」とは
