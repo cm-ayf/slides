@@ -1,0 +1,169 @@
+---
+lang: ja
+title: "プログラマーがコード補完を中断する理由の調査"
+author: "岩田風多"
+format: revealjs
+css: main.css
+code-line-numbers: false
+---
+
+## コード補完の例 {#code-completion-example1}
+
+![](./example1.mov)
+
+エディタが自動で識別子等の候補を表示してくれる機能
+
+## 先行研究 [^1] {#previous-study}
+
+- コード補完の記録を元にコード補完ツールの評価を行った
+- コード補完エンジンを評価する機械的なベンチマークの有効性に疑問を呈する
+- 中断されたコード補完に関しては深入りしていない
+
+[^1]: V. J. Hellendoorn, S. Proksch, H. C. Gall and A. Bacchelli, "When Code Completion Fails: A Case Study on Real-World Completions," 2019 IEEE/ACM 41st International Conference on Software Engineering (ICSE) [https://doi.org/10.1109/ICSE.2019.00101](https://doi.org/10.1109/ICSE.2019.00101)
+
+## 観察：方法 {#observation-method}
+
+- 先行研究が使っているデータセットが公開されている[^2]
+- 中断されたコード補完とソースファイルの1％程度を実際に読んで確認した
+- プログラマーがどのような意図を持ってコード補完をトリガーし中断したかに注目した
+
+[^2]: S. Proksch, S. Nadi, S. Amann and M. Mezini, "Enriching in-IDE process information with fine-grained source code history," 2017 IEEE 24th International Conference on Software Analysis, Evolution and Reengineering (SANER) [https://doi.org/10.1109/SANER.2017.7884626](https://doi.org/10.1109/SANER.2017.7884626)
+
+## 結果 例1（再掲） {#observation-result-example1}
+
+before:
+```cs
+Assembly assembly = Assembly.GetExecutingAssembly();
+assembly.!!;
+```
+
+after:
+```cs
+string location = Assembly.GetExecutingAssembly().Location;
+```
+
+- `Assembly`型の値を変数に束縛していて，そのプロパティを読もうとしている
+- 結局`assembly`はインライン化された
+
+## 結果 例2（再掲） {#observation-result-example2}
+
+before:
+```cs
+FileOperations.CreateUniqueSet(gemList!!, .GoodWords);
+```
+
+after:
+```cs
+HashSet<string> tempList = new HashSet();
+FileOperations.CreateUniqueSet(tempList, .GoodWords);
+```
+
+- `GemList`を入れようとしていたが，`tempList`にした
+  - スコープに`HashSet<string> GemList`があった
+  - すでにある変数ではなく，新たな空の変数を入れるべきであったと考えられる
+
+## 結果 例3（再掲） {#observation-result-example3}
+
+```cs
+? newLength = !!;
+
+? newLength = C!!;
+? newLength = this.Convert().!!;
+
+? newLength = T!!;
+
+? newLength = P!!;
+
+? newLength = !!;
+? newLength = Convert.!!;
+
+? newLength = S!!;
+
+? newLength = new short();
+```
+
+- newLengthを計算するための関数を探している
+- 結局見つからなかったのか，独自に実装した
+
+## 観察：考察 {#observation-discussion-1}
+
+- プログラマーが入力しようとしているトークンが変化しているか定まっていない
+- 事例として見られたのは以下
+  - プログラマーがコードの構造を再検討して修正を始めた
+  - プログラマーがそもそもどのような文字列を入力すべきかわからない状態で入力と削除を繰り返した
+- このような場合にコード補完が中断される
+
+## 観察：考察 {#observation-discussion-2}
+
+- コード補完イベントを時系列で並べてコードの変化に注目するのが不可欠である
+  - 1つのコード補完イベントからプログラマーの意図を読み取るのは非常に難しい
+- 実際に観察で得られた考察は，変化に注目しなければ不可能であった
+
+## 観察：考察 {#observation-discussion-3}
+
+- 変化の中でも，カーソル位置が特にプログラマーの意図を反映している
+  - カーソル位置は補完によって変化する
+  - カーソル位置の変化によって補完の状態が変化する
+- 補完が行われるカーソル位置が変化しないことが重要な情報となる
+  - 例3では，同じ場所で補完を繰り返していることが重要な情報となった
+
+## 量的な分析：方法 {#quantitative-method-1}
+
+- プログラマーが入力しようとしているトークンが定まっていない場合の割合を考えたい
+- カーソル位置が変化していない一連のコード補完イベントを「一連のコード補完」というまとまりとして扱う
+- 一連のコード補完ごとに，タイプ数，うち中断された数，経過時間を集計
+
+## 量的な分析：方法 {#quantitative-method-2}
+
+- カーソルの位置は，コード補完が行われているノードの位置である
+- ノードの位置を文字列化して，それを元にカーソル位置の変化を判定する
+  - データセットにはコードの木構造が含まれていた
+  - 文字列は根ノードを`sst`としたときにそのノードを得るために必要なJavaコード
+
+```java
+sst.getMethods()[3].getBody()[6].getThen()[1].getExpression()
+```
+
+## 量的な分析：方法 {#quantitative-method-3}
+
+- 一連のコード補完の経過時間のヒストグラム
+  - 経過時間が長い→入力すべき内容が定まっていない
+- 一連のコード補完イベントの数と経過時間の散布図
+  - タイプ数とコード補完イベントの商が入力速度に相当する？
+  - タイピングが遅い→入力すべき内容が定まっていない
+
+## 量的な分析：ヒストグラム {#quantitative-histogram-1}
+
+::: {.center}
+![](./histogram.png)
+:::
+
+## 量的な分析：ヒストグラム {#quantitative-histogram-2}
+
+- 度数は単調減少だが，4,000ms 付近で傾きが変わっている
+  - 経過時間が 4,000 ms 以上の一連のコード補完を，仮に入力すべき内容が定まっていない場合とする
+- 経過時間が 4,000 ms 上の一連のコード補完が，中断されたコード補完の半分弱を含む
+  - つまり，中断されたコード補完の半分弱において，入力すべき内容が定まっていない
+  - コード補完ツールの性質として無視できない
+
+## 量的な分析：散布図 {#quantitative-scatter-1}
+
+::: {.center}
+![](./scatter.png)
+:::
+
+## 量的な分析：散布図 {#quantitative-scatter-2}
+
+- 最小の経過時間が折れ線を描いている
+  - コード補完イベントの数が4個の付近で傾きが変わっている
+- 傾きが変わっている→入力速度が変わっている
+  - 傾きはタイピング速度の逆数である
+  - つまり，4個付近でタイピング速度の最大値が大きく減少している\
+    →入力すべき内容が定まっていない
+
+## プログラマーとコード補完ツールの相互作用 {#interaction-1}
+
+- プログラマーは，試行錯誤しながらコードを書いている
+  - 観察にて，プログラマーが入力しようとしているトークンが定まっていない場合があることを確認した
+  - 量的な分析にて，経過時間が長く入力すべき内容が定まっていないコード補完が十分な割合を占めていることを確認した
+- コード補完の「試行錯誤を支援する」という機能にはまだ改善の余地がある
