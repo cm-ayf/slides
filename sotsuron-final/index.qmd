@@ -7,7 +7,34 @@ css: main.css
 code-line-numbers: false
 ---
 
-## コード補完の例 {#code-completion-example1}
+## メモ {.hidden}
+
+- 中間発表は前提としない
+  - 前半は速すぎる
+- 論文は前提としていい
+  - 詳細は……とかしていい
+  - （notationは論文に合わせるか）
+- スケジュール
+  - 研究の背景：3-4分
+  - 観察：4-5分
+  - 量的な分析：4-5分
+  - 残り考察
+- スライドが多い
+  - 1枚のスライドに字を小さくして情報を多めに入れる
+  - 次のスライドの依存が今のスライドだけになるようにする
+- イントロは論文を元に完全に組み替える
+- アウトロを作る
+  - further workがどこであるか指摘する
+  - 考察とmergeする可能性はある
+- 先行研究でも例を出したい
+  - 機械的に生成されたベンチマークと実際のコード補完の記録の話をしたい
+  - Cancel された例の話をすると説明が楽になる？
+- sstのpathのところ簡単にしてしまおう
+- カーソル位置が変化していない←何
+  - 詳しくは論文
+  - 大雑把に説明したい
+
+## コード補完とは {#about-code-completion}
 
 ![](./example1.mov)
 
@@ -15,22 +42,70 @@ code-line-numbers: false
 
 ## 先行研究 [^1] {#previous-study}
 
-- コード補完の記録を元にコード補完ツールの評価を行った
-- コード補完エンジンを評価する機械的なベンチマークの有効性に疑問を呈する
-- 中断されたコード補完に関しては深入りしていない
+- When Code Completion Fails: A Case Study on Real-World Completions
+- コード補完ツールを評価する合成ベンチマークの有効性に疑問を呈する
+  - 合成ベンチマーク：完成しているコードベースに「穴をあけ」，補完させることで精度を評価する
+- 実際のコード補完イベントのうち Apply されたものを用いてコード補完ツールを評価した
+  - Apply されたコード補完イベントを，問題と正解の組と見る
+  - 合成ベンチマークによる評価より低い評価を示した
+  - Suggestion を選択するまでの時間が長いコード補完イベントで特に精度が低いことを示した
 
 [^1]: V. J. Hellendoorn, S. Proksch, H. C. Gall and A. Bacchelli, "When Code Completion Fails: A Case Study on Real-World Completions," 2019 IEEE/ACM 41st International Conference on Software Engineering (ICSE) [https://doi.org/10.1109/ICSE.2019.00101](https://doi.org/10.1109/ICSE.2019.00101)
 
-## 観察：方法 {#observation-method}
+## モチベーション {#motivation}
 
-- 先行研究が使っているデータセットが公開されている[^2]
-- 中断されたコード補完とソースファイルの1％程度を実際に読んで確認した
-- プログラマーがどのような意図を持ってコード補完をトリガーし中断したかに注目した
+- 先行研究は Cancel されたコード補完に関しては深入りしていない
+  - 手法の制約による
+  - Cancel された理由について機械的には判別できないとしている
+- Cancel された理由について考えたい
+  - コード補完システムの能力が足りてないかもしれない
+  - 先行研究では触れられていないコード補完の側面があるかもしれない
+  - プログラマーがコード補完をトリガーし Cancel した意図は何か
+- 2つの手法で考える
+  - 観察：補完イベント時点のコードを時系列に並べて観察し，気づきを得る
+  - 量的な分析：カーソル位置が変わらない一連のコード補完について，経過時間やコード補完イベントの数を集計する
+
+## データセット[^2]について {#about-dataset}
+
+- 対象はC#
+- プログラマーがIDEに対して行った操作を記録したもの（イベント）の集合
+  - コード補完イベントも含まれる；1トークンの補完を行なったもの
+- コード補完イベントには，Accepted/Cancelled/Filtered の別，日時， Suggestion，選択された Suggestion，プログラマーを識別する番号などが含まれる
+- コード補完イベントには補完時点でのコードが SST で含まれる
+  - 推論された型などのメタデータが付与されたASTのようなもの
+  - 「補完が行われているノード」が含まれる
+  - メソッドチェーンを複数の文に分解するなど，単純化が行われている
 
 [^2]: S. Proksch, S. Nadi, S. Amann and M. Mezini, "Enriching in-IDE process information with fine-grained source code history," 2017 IEEE 24th International Conference on Software Analysis, Evolution and Reengineering (SANER) [https://doi.org/10.1109/SANER.2017.7884626](https://doi.org/10.1109/SANER.2017.7884626)
 
-## 結果 例1（再掲） {#observation-result-example1}
+:::{#fig-sst-completion-node layout-ncol="3"}
+```cs
+return c.Id!!;
+```
 
+```cs
+MessageBox.!!;
+```
+
+```cs
+debug!!;
+```
+
+コード補完が行われている部分を表すノードの例
+:::
+
+## 観察：方法 {#observation-method}
+
+- コード補完イベントに含まれる補完時のコードを元のコードのように文字列化する
+  - 文字列化にあたっては，SST 生成時の単純化を元に戻す
+- Cancel されたコード補完イベントに共通して見られる特徴を探す
+- コード補完イベントをファイルごとに時系列に並べて観察する
+  - コードが書かれていく過程を追体験することで，より詳細な洞察を得られると考えた
+- 典型的な事例や興味深い事例を挙げ，プログラマーがコード補完イベントをトリガーした意図・Cancel した意図について考察する
+
+## 観察：結果 例1 {#observation-result-example1}
+
+:::{.code}
 before:
 ```cs
 Assembly assembly = Assembly.GetExecutingAssembly();
@@ -41,12 +116,14 @@ after:
 ```cs
 string location = Assembly.GetExecutingAssembly().Location;
 ```
+:::
 
 - `Assembly`型の値を変数に束縛していて，そのプロパティを読もうとしている
 - 結局`assembly`はインライン化された
 
-## 結果 例2（再掲） {#observation-result-example2}
+## 観察：結果 例2 {#observation-result-example2}
 
+:::{.code}
 before:
 ```cs
 FileOperations.CreateUniqueSet(gemList!!, .GoodWords);
@@ -57,13 +134,15 @@ after:
 HashSet<string> tempList = new HashSet();
 FileOperations.CreateUniqueSet(tempList, .GoodWords);
 ```
+:::
 
 - `GemList`を入れようとしていたが，`tempList`にした
   - スコープに`HashSet<string> GemList`があった
   - すでにある変数ではなく，新たな空の変数を入れるべきであったと考えられる
 
-## 結果 例3（再掲） {#observation-result-example3}
+## 観察：結果 例3 {#observation-result-example3}
 
+:::{.code}
 ```cs
 ? newLength = !!;
 
@@ -81,13 +160,14 @@ FileOperations.CreateUniqueSet(tempList, .GoodWords);
 
 ? newLength = new short();
 ```
+:::
 
 - newLengthを計算するための関数を探している
 - 結局見つからなかったのか，独自に実装した
 
 ## 観察：考察 {#observation-discussion-1}
 
-- プログラマーが入力しようとしているトークンが変化しているか定まっていない
+- プログラマーが入力すべきトークンが変化しているか定まっていない
 - 事例として見られたのは以下
   - プログラマーがコードの構造を再検討して修正を始めた
   - プログラマーがそもそもどのような文字列を入力すべきかわからない状態で入力と削除を繰り返した
@@ -97,10 +177,7 @@ FileOperations.CreateUniqueSet(tempList, .GoodWords);
 
 - コード補完イベントを時系列で並べてコードの変化に注目するのが不可欠である
   - 1つのコード補完イベントからプログラマーの意図を読み取るのは非常に難しい
-- 実際に観察で得られた考察は，変化に注目しなければ不可能であった
-
-## 観察：考察 {#observation-discussion-3}
-
+  - 実際に観察で得られた考察は，変化に注目しなければ不可能であった
 - 変化の中でも，カーソル位置が特にプログラマーの意図を反映している
   - カーソル位置は補完によって変化する
   - カーソル位置の変化によって補完の状態が変化する
@@ -109,23 +186,11 @@ FileOperations.CreateUniqueSet(tempList, .GoodWords);
 
 ## 量的な分析：方法 {#quantitative-method-1}
 
-- プログラマーが入力しようとしているトークンが定まっていない場合の割合を考えたい
+- プログラマーが入力すべきトークンが定まっていない場合の割合を考えたい
 - カーソル位置が変化していない一連のコード補完イベントを「一連のコード補完」というまとまりとして扱う
+  - カーソルの位置は，コード補完が行われているノードの位置である
+  - 完全に一致していなくても，周辺の場所であれば変化していないとみなす
 - 一連のコード補完ごとに，タイプ数，うち中断された数，経過時間を集計
-
-## 量的な分析：方法 {#quantitative-method-2}
-
-- カーソルの位置は，コード補完が行われているノードの位置である
-- ノードの位置を文字列化して，それを元にカーソル位置の変化を判定する
-  - データセットにはコードの木構造が含まれていた
-  - 文字列は根ノードを`sst`としたときにそのノードを得るために必要なJavaコード
-
-```java
-sst.getMethods()[3].getBody()[6].getThen()[1].getExpression()
-```
-
-## 量的な分析：方法 {#quantitative-method-3}
-
 - 一連のコード補完の経過時間のヒストグラム
   - 経過時間が長い→入力すべき内容が定まっていない
 - 一連のコード補完イベントの数と経過時間の散布図
@@ -161,9 +226,13 @@ sst.getMethods()[3].getBody()[6].getThen()[1].getExpression()
   - つまり，4個付近でタイピング速度の最大値が大きく減少している\
     →入力すべき内容が定まっていない
 
-## プログラマーとコード補完ツールの相互作用 {#interaction-1}
+## まとめ {#interaction-1}
 
 - プログラマーは，試行錯誤しながらコードを書いている
-  - 観察にて，プログラマーが入力しようとしているトークンが定まっていない場合があることを確認した
+  - 観察にて，プログラマーが入力すべきトークンが定まっていない場合があることを確認した
   - 量的な分析にて，経過時間が長く入力すべき内容が定まっていないコード補完が十分な割合を占めていることを確認した
 - コード補完の「試行錯誤を支援する」という機能にはまだ改善の余地がある
+- プログラマーの意図を考察するにあたって，コードの変化を時系列で追うことが重要である
+- Further Work
+  - カーソル位置が変化した場合も考慮した分析
+  - 入力すべきトークンが定まっていないと判断するためのより良い指標

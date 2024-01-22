@@ -1,5 +1,9 @@
-h1.title {
-  font-size: 4rem;
+:root {
+  --r-main-font-size: 28px;
+}
+
+div.code code {
+  font-size: 28px;
 }
 
 div.center {
